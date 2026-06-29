@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>RECIPE BOX</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700;900&family=Noto+Sans+JP:wght@400;500;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F7F4EC; --paper-deep:#EFEBDF; --ink:#2A2A26; --ink-soft:#6B675F;
+    --line:#DCD6C4; --accent:#5B7C73; --accent-deep:#3F5950; --gold:#C98A2E;
+    --clay:#B8623A; --moss:#6B7F5E; --blue:#5B7C8C; --mustard:#D6A33B; --bento:#C9758F;
+    --card-shadow:0 1px 0 rgba(42,42,38,0.06),0 6px 16px rgba(42,42,38,0.06);
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; height:100%; background:var(--paper); font-family:'Noto Sans JP',sans-serif; color:var(--ink); overflow:hidden;}
+  /* layout */
+  #app{display:flex; flex-direction:column; height:100vh; max-width:480px; margin:0 auto; position:relative; background:var(--paper);}
+  .header{background:var(--ink); color:var(--paper); padding:env(safe-area-inset-top,14px) 20px 14px; flex-shrink:0; position:relative;}
+  .header::after{content:""; position:absolute; left:0; right:0; bottom:-6px; height:6px; background:repeating-linear-gradient(90deg,var(--ink) 0 10px,transparent 10px 14px); opacity:.4;}
+  .brand{font-family:'Zen Kaku Gothic New'; font-weight:900; font-size:13px; letter-spacing:3px; color:var(--gold);}
+  .tagline{font-size:10px; color:#C9C5B6; margin-top:2px;}
+  .mother-badge{display:none; margin-left:8px; font-size:9px; padding:2px 7px; border-radius:10px; background:var(--gold); color:#fff; font-family:'Roboto Mono',monospace; vertical-align:middle;}
+  .mother-mode .mother-badge{display:inline-block;}
+
+  .screens{flex:1; overflow:hidden; position:relative;}
+  .screen{position:absolute; inset:0; overflow-y:auto; padding-bottom:80px; display:none;}
+  .screen.active{display:block;}
+
+  .tabbar{position:absolute; left:0; right:0; bottom:0; background:var(--paper); border-top:1px solid var(--line); display:flex; padding:8px 10px env(safe-area-inset-bottom,12px); z-index:10;}
+  .tab{flex:1; text-align:center; cursor:pointer; padding:4px 0; color:var(--ink-soft); font-size:10px; font-family:'Roboto Mono',monospace;}
+  .tab .ic{font-size:18px; display:block; margin-bottom:2px;}
+  .tab.active{color:var(--accent-deep); font-weight:700;}
+  .mother-mode .tab[data-admin]{display:none;}
+
+  /* list */
+  .search-bar{margin:14px 16px 8px; display:flex; align-items:center; gap:8px; background:#fff; border:1px solid var(--line); border-radius:10px; padding:10px 12px;}
+  .search-bar input{border:none; outline:none; flex:1; font-family:'Noto Sans JP'; font-size:14px; background:transparent; color:var(--ink);}
+  .chips{display:flex; gap:6px; padding:0 16px 12px; overflow-x:auto; scrollbar-width:none;}
+  .chips::-webkit-scrollbar{display:none;}
+  .chip{flex-shrink:0; font-size:12px; padding:5px 11px; border-radius:20px; border:1px solid var(--line); background:#fff; color:var(--ink-soft); white-space:nowrap; cursor:pointer;}
+  .chip.on{background:var(--ink); color:var(--paper); border-color:var(--ink);}
+  .section-label{font-family:'Roboto Mono',monospace; font-size:10px; letter-spacing:1.5px; color:var(--ink-soft); padding:4px 16px;}
+  .recipe-list{padding:0 12px; display:flex; flex-direction:column; gap:7px;}
+  .recipe-row{background:#fff; border:1px solid var(--line); border-radius:10px; padding:11px 13px; display:flex; align-items:center; gap:10px; box-shadow:var(--card-shadow); cursor:pointer;}
+  .tag-code{font-family:'Roboto Mono',monospace; font-size:10.5px; font-weight:700; color:var(--ink-soft); width:40px; flex-shrink:0;}
+  .dot{width:7px; height:7px; border-radius:50%; flex-shrink:0;}
+  .row-main{flex:1; min-width:0;}
+  .row-title{font-weight:700; font-size:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .row-meta{font-size:11px; color:var(--ink-soft); margin-top:2px; font-family:'Roboto Mono',monospace;}
+  .chev{color:var(--line); font-size:18px;}
+  .empty{text-align:center; color:var(--ink-soft); font-size:13px; padding:40px 20px; line-height:2;}
+  .loading{text-align:center; color:var(--ink-soft); font-size:12px; padding:30px; font-family:'Roboto Mono',monospace;}
+
+  /* detail */
+  .detail-top{display:flex; align-items:center; justify-content:space-between; padding:12px 16px;}
+  .back-btn{font-family:'Roboto Mono',monospace; font-size:12px; padding:7px 12px; border-radius:8px; border:1px solid var(--line); background:#fff; cursor:pointer;}
+  .pdf-btn{font-family:'Roboto Mono',monospace; font-size:12px; padding:7px 12px; border-radius:8px; background:var(--gold); color:#fff; border:none; cursor:pointer; font-weight:700;}
+  .detail-photo{margin:0 16px 12px; height:150px; border-radius:10px; background:linear-gradient(135deg,#E3DCC6,#CFC7AC); display:flex; flex-direction:column; align-items:flex-start; justify-content:space-between; padding:11px; border:1px solid var(--line); cursor:pointer; position:relative; overflow:hidden; background-size:cover; background-position:center;}
+  .detail-photo::after{content:"📷 タップして差し替え"; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(42,42,38,0.35); color:#fff; font-size:12px; font-weight:700; opacity:0; transition:opacity .15s;}
+  .detail-photo:active::after{opacity:1;}
+  .mother-mode .detail-photo::after{display:none;}
+  .mother-mode .detail-photo{cursor:default;}
+  .photo-source-badge{font-family:'Roboto Mono',monospace; font-size:10px; font-weight:700; background:rgba(255,255,255,0.88); color:var(--ink); padding:3px 8px; border-radius:20px;}
+  .photo-source-badge.mine{background:var(--accent); color:#fff;}
+  .photo-replace-hint{font-size:10px; color:#5A5547;}
+  .mother-mode .photo-replace-hint{display:none;}
+  .detail-head{padding:0 18px;}
+  .detail-code{font-family:'Roboto Mono',monospace; font-size:11px; color:var(--accent-deep); font-weight:700;}
+  .detail-title{font-family:'Zen Kaku Gothic New'; font-weight:900; font-size:22px; margin:3px 0 7px; line-height:1.3;}
+  .detail-meta{display:flex; gap:12px; font-size:12px; color:var(--ink-soft); font-family:'Roboto Mono',monospace;}
+  .divider{height:1px; background:var(--line); margin:14px 18px;}
+  .block-title{font-family:'Zen Kaku Gothic New'; font-weight:700; font-size:13px; padding:0 18px 9px; display:flex; align-items:center; gap:8px;}
+  .block-title::before{content:""; width:12px; height:2px; background:var(--accent); display:inline-block;}
+  .ingredients{padding:0 18px;}
+  .ing-row{display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px dashed var(--line); font-size:13px;}
+  .ing-amt{font-family:'Roboto Mono',monospace; color:var(--ink-soft);}
+  .steps{padding:0 18px;}
+  .step{display:flex; gap:9px; margin-bottom:11px; font-size:13px; line-height:1.6;}
+  .step-num{font-family:'Roboto Mono',monospace; font-weight:700; color:#fff; background:var(--accent); width:19px; height:19px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:10px; flex-shrink:0; margin-top:2px;}
+  .source-note{margin:12px 18px 0; font-size:11px; color:var(--ink-soft); padding:9px 11px; background:var(--paper-deep); border-radius:8px;}
+  .delete-btn{display:block; margin:16px 18px 0; padding:10px; border-radius:9px; border:1px solid #E0C5C5; background:#FDF5F5; color:#B84A4A; font-size:12px; text-align:center; cursor:pointer; font-family:'Roboto Mono',monospace;}
+  .mother-mode .delete-btn{display:none;}
+
+  /* register */
+  .pad{padding:16px 18px;}
+  .prompt-card{background:var(--ink); color:var(--paper); border-radius:12px; padding:15px; margin-bottom:16px;}
+  .prompt-card-label{font-family:'Roboto Mono',monospace; font-size:10px; letter-spacing:1.5px; color:var(--gold); margin-bottom:4px;}
+  .prompt-card-desc{font-size:12px; color:#C9C5B6; margin-bottom:11px; line-height:1.5;}
+  .copy-btn{width:100%; padding:10px; border:none; border-radius:9px; background:var(--gold); color:#fff; font-weight:700; font-size:13px; cursor:pointer;}
+  .copy-btn.copied{background:var(--accent);}
+  .copy-feedback{text-align:center; font-size:10.5px; color:var(--accent); margin-top:7px; height:13px; font-family:'Roboto Mono',monospace;}
+  .reg-steps{display:flex; flex-direction:column; gap:9px; margin-bottom:14px;}
+  .reg-step{display:flex; gap:9px; align-items:flex-start; font-size:12px; color:var(--ink-soft); line-height:1.5;}
+  .reg-step b{color:var(--ink);}
+  .reg-num{font-family:'Roboto Mono',monospace; font-weight:700; font-size:10px; color:var(--accent-deep); border:1px solid var(--accent); border-radius:50%; width:17px; height:17px; display:flex; align-items:center; justify-content:center; flex-shrink:0;}
+  textarea{width:100%; height:130px; border:1px dashed var(--line); border-radius:10px; padding:11px; font-family:'Roboto Mono',monospace; font-size:11px; resize:none; background:#fff; color:var(--ink);}
+  .parse-btn{width:100%; margin-top:9px; padding:11px; border:none; border-radius:10px; background:var(--ink); color:var(--paper); font-weight:700; font-size:13px; cursor:pointer;}
+  .preview-card{margin-top:16px; border:1px solid var(--line); border-radius:10px; background:#fff; padding:13px; box-shadow:var(--card-shadow);}
+  .preview-label{font-family:'Roboto Mono',monospace; font-size:10px; color:var(--ink-soft); letter-spacing:1px; margin-bottom:7px;}
+  .photo-attach{margin-top:12px; display:flex; align-items:center; gap:11px; border:1.5px dashed var(--line); border-radius:10px; padding:11px; cursor:pointer;}
+  .photo-attach.on{border-color:var(--accent); background:#F1F5F2; border-style:solid;}
+  .photo-attach-ic{font-size:17px; flex-shrink:0;}
+  .photo-attach-title{font-size:12px; font-weight:700;}
+  .photo-attach-sub{font-size:10px; color:var(--ink-soft); margin-top:2px;}
+  .photo-attach.on .photo-attach-title::after{content:" ・ 添付済み ✓"; color:var(--accent-deep);}
+  .save-btn{width:100%; margin-top:12px; padding:11px; border:none; border-radius:10px; background:var(--accent); color:#fff; font-weight:700; font-size:13px; cursor:pointer;}
+  .save-btn:disabled{background:#B0C4BE; cursor:not-allowed;}
+  .parse-error{color:#B84A4A; font-size:11.5px; margin-top:7px; padding:8px; background:#FDF5F5; border-radius:8px;}
+
+  /* export */
+  .export-summary{margin:12px 16px; padding:13px; border-radius:10px; background:var(--ink); color:var(--paper); display:flex; justify-content:space-between; align-items:center;}
+  .export-summary .num{font-family:'Roboto Mono',monospace; font-weight:700; font-size:20px; color:var(--gold);}
+  .export-summary .lbl{font-size:11px; color:#C9C5B6;}
+  .checkbox{width:18px; height:18px; border-radius:5px; border:1.5px solid var(--line); display:flex; align-items:center; justify-content:center; flex-shrink:0; background:#fff; font-size:11px;}
+  .checkbox.on{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .export-btn{margin:14px 16px 0; padding:12px; border:none; border-radius:10px; background:var(--gold); color:#fff; font-weight:700; font-size:14px; cursor:pointer; width:calc(100% - 32px); display:block;}
+
+  /* toast */
+  .toast{position:fixed; bottom:100px; left:50%; transform:translateX(-50%); background:var(--ink); color:var(--paper); padding:10px 20px; border-radius:20px; font-size:12px; font-family:'Roboto Mono',monospace; opacity:0; transition:opacity .2s; pointer-events:none; z-index:999; white-space:nowrap;}
+  .toast.show{opacity:1;}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="header">
+    <div class="brand">RECIPE BOX<span class="mother-badge">VIEW ONLY</span></div>
+    <div class="tagline">撮って、貼って、探せる</div>
+  </div>
+
+  <div class="screens">
+    <!-- 一覧 -->
+    <div class="screen active" id="screen-list">
+      <div class="search-bar">
+        <span>🔍</span>
+        <input id="search-input" placeholder="レシピ名・食材で検索" oninput="filterRecipes()">
+      </div>
+      <div class="chips" id="cat-chips">
+        <div class="chip on" onclick="setCat('')" data-cat="">すべて</div>
+        <div class="chip" onclick="setCat('主菜')" data-cat="主菜">主菜</div>
+        <div class="chip" onclick="setCat('副菜')" data-cat="副菜">副菜</div>
+        <div class="chip" onclick="setCat('汁物')" data-cat="汁物">汁物</div>
+        <div class="chip" onclick="setCat('デザート')" data-cat="デザート">デザート</div>
+        <div class="chip" onclick="setCat('お弁当')" data-cat="お弁当">お弁当</div>
+      </div>
+      <div class="section-label" id="list-label">読み込み中...</div>
+      <div class="recipe-list" id="recipe-list"><div class="loading">読み込み中...</div></div>
+    </div>
+
+    <!-- 詳細 -->
+    <div class="screen" id="screen-detail">
+      <div class="detail-top">
+        <div class="back-btn" onclick="showScreen('list')">← 一覧</div>
+        <div class="pdf-btn" data-admin onclick="exportCurrent()">PDF出力</div>
+      </div>
+      <div class="detail-photo" id="detail-photo" onclick="handlePhotoTap()">
+        <div class="photo-source-badge" id="photo-badge">📖 雑誌より</div>
+        <div class="photo-replace-hint">タップで差し替え</div>
+      </div>
+      <div class="detail-head">
+        <div class="detail-code" id="detail-code"></div>
+        <div class="detail-title" id="detail-title"></div>
+        <div class="detail-meta" id="detail-meta"></div>
+      </div>
+      <div class="divider"></div>
+      <div class="block-title">材料</div>
+      <div class="ingredients" id="detail-ingredients"></div>
+      <div class="divider"></div>
+      <div class="block-title">手順</div>
+      <div class="steps" id="detail-steps"></div>
+      <div class="source-note" id="detail-source"></div>
+      <div class="delete-btn" data-admin onclick="deleteCurrentRecipe()">🗑 このレシピを削除</div>
+    </div>
+
+    <!-- 登録 -->
+    <div class="screen" id="screen-register">
+      <div class="pad">
+        <div class="prompt-card">
+          <div class="prompt-card-label">STEP 1 ・ 変換プロンプト</div>
+          <div class="prompt-card-desc">コピーしてClaudeアプリに写真と一緒に送ってください</div>
+          <button class="copy-btn" id="copy-btn" onclick="copyPrompt()">📋 プロンプトをコピー</button>
+          <div class="copy-feedback" id="copy-feedback"></div>
+        </div>
+        <div class="reg-steps">
+          <div class="reg-step"><div class="reg-num">2</div><div>Claudeの出力（JSON）を<b>下にペースト</b></div></div>
+          <div class="reg-step"><div class="reg-num">3</div><div>内容確認して<b>登録</b></div></div>
+        </div>
+        <textarea id="json-input" placeholder='ここにClaudeが出力したJSONを貼り付けてください&#10;&#10;{"title":"...","category":"主菜",...}'></textarea>
+        <div class="parse-error" id="parse-error" style="display:none"></div>
+        <button class="parse-btn" onclick="parseJson()">内容を解析する</button>
+
+        <div class="preview-card" id="preview-card" style="display:none">
+          <div class="preview-label">解析結果プレビュー</div>
+          <div id="preview-title" style="font-weight:700; font-size:15px;"></div>
+          <div id="preview-meta" style="font-size:12px; color:var(--ink-soft); margin-top:3px;"></div>
+          <div class="photo-attach" id="photo-attach" onclick="togglePhotoAttach()">
+            <div class="photo-attach-ic">📷</div>
+            <div>
+              <div class="photo-attach-title">元写真を添付</div>
+              <div class="photo-attach-sub">任意・あとから差し替えOK</div>
+            </div>
+          </div>
+          <button class="save-btn" id="save-btn" onclick="saveRecipe()">この内容で登録する</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 出力 -->
+    <div class="screen" id="screen-export">
+      <div class="export-summary">
+        <div><div class="lbl">選択中</div><div class="num" id="export-count">0件</div></div>
+        <div class="lbl" id="export-pages">A5・0ページ</div>
+      </div>
+      <div class="section-label">チェックして選択</div>
+      <div class="recipe-list" id="export-list"></div>
+      <button class="export-btn" onclick="doPdfExport()">PDFを書き出す</button>
+    </div>
+  </div>
+
+  <div class="tabbar">
+    <div class="tab active" id="tab-list" onclick="showScreen('list')"><span class="ic">📋</span>一覧</div>
+    <div class="tab" id="tab-register" data-admin onclick="showScreen('register')"><span class="ic">📷</span>登録</div>
+    <div class="tab" id="tab-export" data-admin onclick="showScreen('export')"><span class="ic">🖨</span>出力</div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ===== 設定 =====
+const API_URL = 'https://script.google.com/macros/s/AKfycbyz6vkFVlHjo5DKnXlDBnZoo-AUJCzWa7n6GyMCd7j9ccIKhTdqXAP1Lb5XRS3DgYsQ/exec';
+
+// URLパラメータ ?view=1 なら閲覧モード
+const IS_VIEWER = new URLSearchParams(location.search).get('view') === '1';
+
+const CATS = {
+  '主菜':'#B8623A','副菜':'#6B7F5E','汁物':'#5B7C8C','デザート':'#D6A33B','お弁当':'#C9758F'
+};
+
+const CONVERT_PROMPT = `この写真に写っているレシピを読み取って、以下のJSON形式だけを出力してください。
+説明文・前置き・Markdownのコードブロック(\`\`\`)は一切不要です。JSONのみを返してください。
+
+{
+  "title": "レシピ名",
+  "category": "主菜 / 副菜 / 汁物 / デザート / お弁当 のいずれか",
+  "servings": 人数（数値）,
+  "time_min": 調理時間の分数（数値）,
+  "ingredients": [
+    {"name": "材料名", "amount": "分量"}
+  ],
+  "steps": [
+    "手順1の文章",
+    "手順2の文章"
+  ],
+  "source_note": "雑誌名・号数など分かる範囲で（不明なら空文字）"
+}
+
+写真から読み取れない項目は推測せず、空文字または妥当な初期値にしてください。`;
+
+// ===== 状態 =====
+let allRecipes = [];
+let currentRecipe = null;
+let currentCat = '';
+let parsedData = null;
+let selectedForExport = new Set();
+
+// ===== 初期化 =====
+document.addEventListener('DOMContentLoaded', () => {
+  if (IS_VIEWER) {
+    document.getElementById('app').classList.add('mother-mode');
+  }
+  loadRecipes();
+});
+
+// ===== API =====
+async function api(params) {
+  const url = API_URL + '?' + new URLSearchParams(params).toString();
+  const res = await fetch(url);
+  return res.json();
+}
+
+async function loadRecipes() {
+  document.getElementById('recipe-list').innerHTML = '<div class="loading">読み込み中...</div>';
+  try {
+    const data = await api({ action: 'list' });
+    if (!data.ok) throw new Error(data.error);
+    allRecipes = data.recipes;
+    renderList();
+  } catch (e) {
+    document.getElementById('recipe-list').innerHTML = `<div class="empty">読み込みに失敗しました<br><small>${e.message}</small></div>`;
+  }
+}
+
+// ===== 一覧 =====
+function setCat(cat) {
+  currentCat = cat;
+  document.querySelectorAll('.chip[data-cat]').forEach(c => {
+    c.classList.toggle('on', c.dataset.cat === cat);
+  });
+  renderList();
+}
+
+function filterRecipes() { renderList(); }
+
+function renderList() {
+  const q = (document.getElementById('search-input').value || '').trim().toLowerCase();
+  let list = allRecipes.filter(r => {
+    if (currentCat && r.category !== currentCat) return false;
+    if (q) {
+      const ing = (r.ingredients || []).map(i => i.name).join(' ');
+      return (r.title + r.category + ing).toLowerCase().includes(q);
+    }
+    return true;
+  });
+
+  const label = document.getElementById('list-label');
+  label.textContent = list.length + ' RECIPES';
+
+  const el = document.getElementById('recipe-list');
+  if (!list.length) {
+    el.innerHTML = '<div class="empty">レシピがまだありません<br>📷 登録タブから追加してください</div>';
+    return;
+  }
+  el.innerHTML = list.map(r => `
+    <div class="recipe-row" onclick="showDetail('${r.id}')">
+      <div class="tag-code">${r.id}</div>
+      <div class="dot" style="background:${CATS[r.category]||'#aaa'}"></div>
+      <div class="row-main">
+        <div class="row-title">${escHtml(r.title)}</div>
+        <div class="row-meta">${escHtml(r.category)} ・ ${r.time_min ? r.time_min+'分' : '—'}</div>
+      </div>
+      <div class="chev">›</div>
+    </div>
+  `).join('');
+}
+
+// ===== 詳細 =====
+function showDetail(id) {
+  currentRecipe = allRecipes.find(r => r.id === id);
+  if (!currentRecipe) return;
+  const r = currentRecipe;
+
+  document.getElementById('detail-code').textContent = r.id + ' ・ ' + (r.category || '');
+  document.getElementById('detail-title').textContent = r.title;
+  document.getElementById('detail-meta').innerHTML =
+    `<span>${r.servings ? r.servings+'人分' : ''}</span><span>${r.time_min ? r.time_min+'分' : ''}</span>`;
+
+  const photo = document.getElementById('detail-photo');
+  if (r.photo_url) {
+    photo.style.backgroundImage = `url(${r.photo_url})`;
+  } else {
+    photo.style.backgroundImage = '';
+  }
+  const badge = document.getElementById('photo-badge');
+  if (r.photo_source === 'self') {
+    badge.textContent = '📷 自分で撮影'; badge.className = 'photo-source-badge mine';
+  } else {
+    badge.textContent = '📖 雑誌より'; badge.className = 'photo-source-badge';
+  }
+
+  const ings = (r.ingredients || []);
+  document.getElementById('detail-ingredients').innerHTML = ings.length
+    ? ings.map(i => `<div class="ing-row"><span>${escHtml(i.name)}</span><span class="ing-amt">${escHtml(i.amount)}</span></div>`).join('')
+    : '<div style="color:var(--ink-soft);font-size:13px;">情報なし</div>';
+
+  const steps = (r.steps || []);
+  document.getElementById('detail-steps').innerHTML = steps.length
+    ? steps.map((s, i) => `<div class="step"><div class="step-num">${i+1}</div>${escHtml(s)}</div>`).join('')
+    : '<div style="color:var(--ink-soft);font-size:13px;">情報なし</div>';
+
+  let note = [];
+  if (r.source_note) note.push('出典：' + r.source_note);
+  if (r.created_at) note.push('登録日 ' + r.created_at);
+  document.getElementById('detail-source').textContent = note.join(' ／ ');
+
+  showScreen('detail');
+}
+
+function handlePhotoTap() {
+  if (IS_VIEWER || !currentRecipe) return;
+  showToast('写真差し替え機能は本実装時に追加予定です');
+}
+
+async function deleteCurrentRecipe() {
+  if (!currentRecipe) return;
+  if (!confirm(`「${currentRecipe.title}」を削除しますか？`)) return;
+  try {
+    const data = await api({ action: 'delete', id: currentRecipe.id });
+    if (!data.ok) throw new Error('削除に失敗しました');
+    allRecipes = allRecipes.filter(r => r.id !== currentRecipe.id);
+    currentRecipe = null;
+    showScreen('list');
+    renderList();
+    showToast('削除しました');
+  } catch (e) {
+    showToast('エラー：' + e.message);
+  }
+}
+
+// ===== 登録 =====
+function copyPrompt() {
+  const btn = document.getElementById('copy-btn');
+  const done = () => {
+    btn.textContent = '✓ コピーしました'; btn.classList.add('copied');
+    document.getElementById('copy-feedback').textContent = 'Claudeアプリに貼り付けて写真と一緒に送信してください';
+    setTimeout(() => { btn.textContent = '📋 プロンプトをコピー'; btn.classList.remove('copied'); document.getElementById('copy-feedback').textContent = ''; }, 2500);
+  };
+  navigator.clipboard?.writeText(CONVERT_PROMPT).then(done).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = CONVERT_PROMPT; ta.style.cssText = 'position:fixed;opacity:0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); done(); } catch (_) {}
+    document.body.removeChild(ta);
+  });
+}
+
+function parseJson() {
+  const raw = document.getElementById('json-input').value.trim();
+  const errEl = document.getElementById('parse-error');
+  errEl.style.display = 'none';
+  if (!raw) { errEl.textContent = 'JSONを貼り付けてください'; errEl.style.display = 'block'; return; }
+  try {
+    const clean = raw.replace(/^```json?\s*/i, '').replace(/\s*```$/, '');
+    parsedData = JSON.parse(clean);
+    document.getElementById('preview-title').textContent = parsedData.title || '（タイトルなし）';
+    document.getElementById('preview-meta').textContent =
+      [parsedData.category, parsedData.servings ? parsedData.servings+'人分' : '', parsedData.time_min ? parsedData.time_min+'分' : '',
+       `材料${(parsedData.ingredients||[]).length}点`, `手順${(parsedData.steps||[]).length}`].filter(Boolean).join(' ・ ');
+    document.getElementById('preview-card').style.display = 'block';
+  } catch (e) {
+    errEl.textContent = 'JSONの形式が正しくありません。Claudeの出力をそのまま貼り付けてください。';
+    errEl.style.display = 'block';
+  }
+}
+
+async function saveRecipe() {
+  if (!parsedData) return;
+  const btn = document.getElementById('save-btn');
+  btn.disabled = true; btn.textContent = '登録中...';
+  try {
+    const data = await api({ action: 'create', data: encodeURIComponent(JSON.stringify(parsedData)) });
+    if (!data.ok) throw new Error(data.error || '登録に失敗しました');
+    allRecipes.unshift(data.recipe);
+    document.getElementById('json-input').value = '';
+    document.getElementById('preview-card').style.display = 'none';
+    parsedData = null;
+    showScreen('list');
+    renderList();
+    showToast('登録しました！ ' + data.recipe.id);
+  } catch (e) {
+    showToast('エラー：' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = 'この内容で登録する';
+  }
+}
+
+function togglePhotoAttach() {
+  document.getElementById('photo-attach').classList.toggle('on');
+}
+
+// ===== 出力 =====
+function renderExportList() {
+  const el = document.getElementById('export-list');
+  el.innerHTML = allRecipes.map((r, i) => `
+    <div class="recipe-row" onclick="toggleExport('${r.id}')">
+      <div class="checkbox ${selectedForExport.has(r.id) ? 'on' : ''}" id="chk-${r.id}">${selectedForExport.has(r.id) ? '✓' : ''}</div>
+      <div class="dot" style="background:${CATS[r.category]||'#aaa'}"></div>
+      <div class="row-main">
+        <div class="row-title">${escHtml(r.title)}</div>
+        <div class="row-meta">${escHtml(r.category)} ・ ${r.time_min ? r.time_min+'分' : '—'}</div>
+      </div>
+    </div>
+  `).join('') || '<div class="empty">レシピがありません</div>';
+  updateExportCount();
+}
+
+function toggleExport(id) {
+  if (selectedForExport.has(id)) selectedForExport.delete(id);
+  else selectedForExport.add(id);
+  const chk = document.getElementById('chk-' + id);
+  if (chk) { chk.classList.toggle('on', selectedForExport.has(id)); chk.textContent = selectedForExport.has(id) ? '✓' : ''; }
+  updateExportCount();
+}
+
+function updateExportCount() {
+  const n = selectedForExport.size;
+  document.getElementById('export-count').textContent = n + '件';
+  document.getElementById('export-pages').textContent = `A5・${n}ページ`;
+}
+
+function doPdfExport() {
+  if (!selectedForExport.size) { showToast('レシピを選んでください'); return; }
+  showToast('PDF出力機能は本実装時に追加予定です');
+}
+
+function exportCurrent() {
+  if (!currentRecipe) return;
+  showToast('PDF出力機能は本実装時に追加予定です');
+}
+
+// ===== ユーティリティ =====
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  const tab = document.getElementById('tab-' + name);
+  if (tab) tab.classList.add('active');
+  if (name === 'export') renderExportList();
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+function escHtml(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+</script>
+</body>
+</html>
